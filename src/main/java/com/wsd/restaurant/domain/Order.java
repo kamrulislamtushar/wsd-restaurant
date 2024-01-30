@@ -2,6 +2,8 @@ package com.wsd.restaurant.domain;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.wsd.restaurant.enumeration.OrderStatus;
+import jakarta.persistence.Access;
+import jakarta.persistence.AccessType;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -49,6 +51,11 @@ public class Order extends AbstractAuditingEntity<Long> implements Serializable 
 
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
     private Set<OrderItem> orderItems = new HashSet<>();
+
+    @Access(value = AccessType.PROPERTY)
+    @Column(name = "user_id", updatable = false, insertable = false)
+    private Long userId;
+
     @ManyToOne(fetch = FetchType.LAZY)
     private User user;
 
@@ -125,6 +132,14 @@ public class Order extends AbstractAuditingEntity<Long> implements Serializable 
 
     public void setOrderTime(Instant orderTime) {
         this.orderTime = orderTime;
+    }
+
+    public Long getUserId() {
+        return userId;
+    }
+
+    public void setUserId(Long userId) {
+        this.userId = userId;
     }
 
     @Override

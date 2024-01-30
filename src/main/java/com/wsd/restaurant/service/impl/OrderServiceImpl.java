@@ -75,8 +75,27 @@ public class OrderServiceImpl implements OrderService {
 
     @Override
     public Page<OrderDTO> getTodayOrders(Pageable pageable) {
-      Instant startOfDay = LocalDate.now().atStartOfDay(ZoneId.systemDefault()).toInstant();
-      return orderRepository.findByOrderTimeAfter(startOfDay, pageable).map(orderMapper::toDto);
+        Instant startOfDay = LocalDate.now().atStartOfDay(ZoneId.systemDefault()).toInstant();
+        return orderRepository.findByOrderTimeAfter(startOfDay, pageable).map(orderMapper::toDto);
 
+    }
+
+    @Override
+    public Double getTodayHighestTotalPrice() {
+        Instant todayStart = Instant.now().truncatedTo(java.time.temporal.ChronoUnit.DAYS);
+        Instant todayEnd = todayStart.plus(java.time.Duration.ofDays(1));
+        return orderRepository.findTodayHighestTotalPrice(todayStart, todayEnd);
+    }
+
+    @Override
+    public Double findTodayTotalSaleAmount() {
+        Instant todayStart = Instant.now().truncatedTo(java.time.temporal.ChronoUnit.DAYS);
+        Instant todayEnd = todayStart.plus(java.time.Duration.ofDays(1));
+        return orderRepository.findTodayTotalSaleAmount(todayStart, todayEnd);
+    }
+
+    @Override
+    public List<OrderDTO> getCustomerOrders(Long userId) {
+        return orderRepository.findAllByUserId(userId).stream().map(orderMapper::toDto).toList();
     }
 }

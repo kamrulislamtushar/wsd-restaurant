@@ -1,6 +1,7 @@
 package com.wsd.restaurant.service;
 
 import com.wsd.restaurant.dto.OrderDTO;
+import java.util.List;
 import java.util.Optional;
 import org.aspectj.weaver.ast.Or;
 import org.springframework.data.domain.Page;
@@ -52,5 +53,9 @@ public interface OrderService {
 
     Page<OrderDTO> getTodayOrders(Pageable pageable);
 
+    Double getTodayHighestTotalPrice();
+    Double findTodayTotalSaleAmount();
+
+    List<OrderDTO> getCustomerOrders(Long userId);
 
 }
