@@ -11,6 +11,6 @@ public final class Constants {
     public static final String SYSTEM = "system";
     public static final String DEFAULT_LANGUAGE = "en";
     public static String SPRING_PROFILE_NO_LIQUIBASE = "no-liquibase";
-
+    public static final String NAME_CO_RELATION_ID = "X-Correlation-ID";
     private Constants() {}
 }

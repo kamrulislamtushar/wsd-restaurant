@@ -1,11 +1,10 @@
 
-logging:
-  level:
-    ROOT: DEBUG
-    org.hibernate.SQL: DEBUG
-    com.wsd: DEBUG
 
 spring:
+  h2:
+    console:
+      enabled: true
+      path: /h2-console-ui
   devtools:
     restart:
       enabled: true
@@ -29,3 +28,5 @@ spring:
     contexts: dev, faker
 
 
+server:
+  port: 8088
