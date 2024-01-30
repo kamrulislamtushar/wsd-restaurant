@@ -4,7 +4,9 @@ import com.wsd.restaurant.enumeration.OrderStatus;
 import jakarta.validation.constraints.NotNull;
 import java.io.Serializable;
 import java.time.Instant;
+import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 
 /**
  * A DTO for the {@link com.wsd.domain.Order} entity.
@@ -18,6 +20,8 @@ public class OrderDTO implements Serializable {
     private OrderStatus orderStatus;
 
     private Double totalPrice;
+
+    private Set<OrderItemDTO> orderItems;
 
     @NotNull
     private Instant orderTime;
@@ -52,6 +56,14 @@ public class OrderDTO implements Serializable {
 
     public void setOrderTime(Instant orderTime) {
         this.orderTime = orderTime;
+    }
+
+    public Set<OrderItemDTO> getOrderItems() {
+        return orderItems;
+    }
+
+    public void setOrderItems(Set<OrderItemDTO> orderItems) {
+        this.orderItems = orderItems;
     }
 
     @Override

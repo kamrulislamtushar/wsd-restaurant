@@ -16,17 +16,17 @@ spring:
       indent-output: true
   datasource:
     type: com.zaxxer.hikari.HikariDataSource
-    url: jdbc:h2:mem:testdb
-    username: sa
-    password: password
+    url: jdbc:postgresql://localhost:5432/orderManagement
+    username: postgres
+    password: postgres
     hikari:
       poolName: Hikari
       auto-commit: false
-    driver-class-name: org.h2.Driver
+    driver-class-name: org.postgresql.Driver
   liquibase:
     # Remove 'faker' if you do not want the sample data to be loaded automatically
     contexts: dev, faker
 
 
 server:
-  port: 8088
+  port: 8080

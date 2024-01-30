@@ -1,11 +1,11 @@
-id;name;description;price
-1;because;by;30303.12
-2;aw apprehend heavily;sleepy over motionless;13653.51
-3;neglected index though;wherever ha recent;11799.89
-4;phooey;ugh while;16218.96
-5;wherever brr;huzzah outstanding gah;159.56
-6;theory unless goad;hygienic gadzooks provided;18459.77
-7;yowza transom unto;so immediate bustling;19180.37
-8;frightfully pollution upbeat;hmph valiantly;21898.33
-9;once;disloyal;18180.6
-10;seemingly except;bah defiant equalize;13444.91
+id;name;description;price;food_type
+1;because;by;30303.12;DESERT
+2;aw apprehend heavily;sleepy over motionless;13653.51;DESERT
+3;neglected index though;wherever ha recent;11799.89;DESERT
+4;phooey;ugh while;16218.96;DESERT
+5;wherever brr;huzzah outstanding gah;159.56;DESERT
+6;theory unless goad;hygienic gadzooks provided;18459.77;DESERT
+7;yowza transom unto;so immediate bustling;19180.37;DESERT
+8;frightfully pollution upbeat;hmph valiantly;21898.33;DESERT
+9;once;disloyal;18180.6;DESERT
+10;seemingly except;bah defiant equalize;13444.91;DESERT

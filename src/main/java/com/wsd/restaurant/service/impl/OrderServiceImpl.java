@@ -5,6 +5,10 @@ import com.wsd.restaurant.repository.OrderRepository;
 import com.wsd.restaurant.service.OrderService;
 import com.wsd.restaurant.dto.OrderDTO;
 import com.wsd.restaurant.mapper.OrderMapper;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.util.List;
 import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -67,5 +71,12 @@ public class OrderServiceImpl implements OrderService {
     public void delete(Long id) {
         log.debug("Request to delete Order : {}", id);
         orderRepository.deleteById(id);
+    }
+
+    @Override
+    public Page<OrderDTO> getTodayOrders(Pageable pageable) {
+      Instant startOfDay = LocalDate.now().atStartOfDay(ZoneId.systemDefault()).toInstant();
+      return orderRepository.findByOrderTimeAfter(startOfDay, pageable).map(orderMapper::toDto);
+
     }
 }

@@ -24,10 +24,14 @@
                 <constraints nullable="false" />
             </column>
             <column name="last_modified_by" type="varchar(50)"/>
+            <column name="user_id" type="bigint"/>
             <column name="created_date" type="timestamp"/>
             <column name="created_by" type="varchar(50)">
 
             </column>
+
+<!--            <column name="user_id" type="bigint">-->
+<!--            </column>-->
             <column name="last_modified_date" type="timestamp"/>
         </createTable>
         <dropDefaultValue tableName="orders" columnName="order_time" columnDataType="${datetimeType}"/>
@@ -52,6 +56,7 @@
             <column name="order_status" type="string"/>
             <column name="total_price" type="numeric"/>
             <column name="order_time" type="date"/>
+            <column name="user_id" type="numeric"/>
             <!-- jhipster-needle-liquibase-add-loadcolumn - JHipster (and/or extensions) can add load columns here -->
         </loadData>
     </changeSet>

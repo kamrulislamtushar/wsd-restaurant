@@ -11,9 +11,9 @@
     <property name="datetimeType" value="datetime" dbms="postgresql"/>
 
     <include file="config/liquibase/changelog/00000000000000_initial_schema.xml" relativeToChangelogFile="false"/>
+    <include file="config/liquibase/changelog/20240130191732_added_entity_FoodItem.xml" relativeToChangelogFile="false"/>
     <include file="config/liquibase/changelog/20240130191532_added_entity_Order.xml" relativeToChangelogFile="false"/>
     <include file="config/liquibase/changelog/20240130191632_added_entity_OrderItems.xml" relativeToChangelogFile="false"/>
-    <include file="config/liquibase/changelog/20240130191732_added_entity_FoodItem.xml" relativeToChangelogFile="false"/>
     <include file="config/liquibase/changelog/20240130191632_added_entity_constraints_OrderItems.xml" relativeToChangelogFile="false"/>
 
 </databaseChangeLog>

@@ -15,7 +15,7 @@ public class OrderItemDTO implements Serializable {
     @NotNull
     private Integer quantity;
 
-    private OrderDTO order;
+//    private OrderDTO order;
 
     private FoodItemDTO foodItem;
 
@@ -35,13 +35,13 @@ public class OrderItemDTO implements Serializable {
         this.quantity = quantity;
     }
 
-    public OrderDTO getOrder() {
-        return order;
-    }
-
-    public void setOrder(OrderDTO order) {
-        this.order = order;
-    }
+//    public OrderDTO getOrder() {
+//        return order;
+//    }
+//
+//    public void setOrder(OrderDTO order) {
+//        this.order = order;
+//    }
 
     public FoodItemDTO getFoodItem() {
         return foodItem;
@@ -78,7 +78,7 @@ public class OrderItemDTO implements Serializable {
         return "OrderItemsDTO{" +
             "id=" + getId() +
             ", quantity=" + getQuantity() +
-            ", order=" + getOrder() +
+//            ", order=" + getOrder() +
             ", foodItem=" + getFoodItem() +
             "}";
     }

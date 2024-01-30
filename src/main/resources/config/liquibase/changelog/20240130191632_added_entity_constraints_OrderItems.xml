@@ -21,5 +21,12 @@
                                  referencedColumnNames="id"
                                  referencedTableName="food_items"
                                  />
+
+        <addForeignKeyConstraint baseColumnNames="user_id"
+                                 baseTableName="orders"
+                                 constraintName="fk_orders_user_id"
+                                 referencedColumnNames="id"
+                                 referencedTableName="users"
+        />
     </changeSet>
 </databaseChangeLog>
