@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE configuration>
+
+<configuration scan="true">
+    <!-- Patterns based on https://github.com/spring-projects/spring-boot/blob/v3.0.0/spring-boot-project/spring-boot/src/main/resources/org/springframework/boot/logging/logback/defaults.xml -->
+    <conversionRule conversionWord="crlf" converterClass="com.wsd.restaurant.config.CRLFLogConverter" />
+    <property name="LOG_PATH" value="log"/>
+<!--    <property name="CONSOLE_LOG_PATTERN" value="${CONSOLE_LOG_PATTERN:-%clr(%d{${LOG_DATEFORMAT_PATTERN:-yyyy-MM-dd'T'HH:mm:ss.SSSXXX}}){faint} %clr(${LOG_LEVEL_PATTERN:-%5p}) %clr(${PID:- }){magenta} %clr(-&#45;&#45;){faint} %clr([%15.15t]){faint} %clr(%-40.40logger{39}){cyan} %clr(:){faint} %crlf(%m){red} %n${LOG_EXCEPTION_CONVERSION_WORD:-%wEx}}"/>-->
+    <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_PATH}/APP_SYSTEM_LOG_%d{yyyyMMdd}_${hostName}.log</fileNamePattern>
+            <maxHistory>90</maxHistory>
+        </rollingPolicy>
+        <encoder>
+            <charset>utf-8</charset>
+            <Pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level [%X{X-Correlation-ID}] %logger{36}.%M:%L - %msg%n</Pattern>
+        </encoder>
+    </appender>
+
+    <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <Pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level [%X{X-Correlation-ID}] %logger{36}.%M:%L - %msg%n
+            </Pattern>
+        </encoder>
+    </appender>
+
+    <appender name="STATISTICS-FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
+            <Pattern>%d{yyyy-MM-dd HH:mm:ss.SSS}|%X{X-Correlation-ID}|%X{tracerId}|%X{requestPath}|%X{requestParams}|%X{requestBody}|%X{responseBody}|%X{executeTime}|%X{responseStatus}|%X{exception}|%X{extApiPath}|%X{extApiExecuteTime}|%X{extApiStatus}|%X{currentUser}|%X{referer}||||||||||||||||%n</Pattern>
+        </encoder>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_PATH}/APP_STAT_LOG_%d{yyyyMMdd_HH}_${hostName}.log</fileNamePattern>
+        </rollingPolicy>
+    </appender>
+
+
+    <logger name="STATS-LOGGING" additivity="false" level="info">
+        <appender-ref ref="STATISTICS-FILE"/>
+    </logger>
+
+    <springProfile name="dev">
+        <root level="INFO">
+            <appender-ref ref="FILE"/>
+            <appender-ref ref="STDOUT"/>
+        </root>
+    </springProfile>
+
+    <springProfile name="prod">
+        <root level="INFO">
+            <appender-ref ref="FILE"/>
+            <appender-ref ref="STDOUT"/>
+        </root>
+    </springProfile>
+
+
+    <springProfile name="test">
+        <root level="INFO">
+            <appender-ref ref="STDOUT"/>
+            <appender-ref ref="FILE"/>
+        </root>
+    </springProfile>
+
+    <springProfile name="stage">
+        <root level="INFO">
+            <appender-ref ref="STDOUT"/>
+            <appender-ref ref="FILE"/>
+        </root>
+    </springProfile>
+
+    <logger name="javax.activation" level="WARN"/>
+    <logger name="javax.mail" level="WARN"/>
+    <logger name="javax.management.remote" level="WARN"/>
+    <logger name="javax.xml.bind" level="WARN"/>
+    <logger name="ch.qos.logback" level="WARN"/>
+    <logger name="org.redisson" level="WARN"/>
+    <logger name="com.netflix" level="WARN"/>
+    <logger name="com.netflix.config.sources.URLConfigurationSource" level="ERROR"/>
+    <logger name="com.netflix.discovery" level="INFO"/>
+    <logger name="com.ryantenney" level="WARN"/>
+    <logger name="com.sun" level="WARN"/>
+    <logger name="com.zaxxer" level="WARN"/>
+    <logger name="io.undertow" level="WARN"/>
+    <logger name="io.undertow.websockets.jsr" level="ERROR"/>
+    <logger name="org.apache" level="WARN"/>
+    <logger name="org.apache.kafka" level="ERROR"/>
+    <logger name="org.apache.catalina.startup.DigesterFactory" level="OFF"/>
+    <logger name="org.bson" level="WARN"/>
+    <logger name="org.hibernate.validator" level="WARN"/>
+    <logger name="org.hibernate" level="ERROR"/>
+    <logger name="org.hibernate.ejb.HibernatePersistence" level="OFF"/>
+    <logger name="org.springframework" level="WARN"/>
+    <logger name="org.springframework.web" level="WARN"/>
+    <logger name="org.springframework.security" level="WARN"/>
+    <logger name="org.springframework.cache" level="WARN"/>
+    <logger name="org.thymeleaf" level="WARN"/>
+    <logger name="org.xnio" level="WARN"/>
+    <logger name="springfox" level="WARN"/>
+    <logger name="sun.rmi" level="WARN"/>
+    <logger name="liquibase" level="WARN"/>
+    <logger name="LiquibaseSchemaResolver" level="INFO"/>
+    <logger name="springfox.documentation.schema.property" level="ERROR"/>
+    <logger name="sun.rmi.transport" level="WARN"/>
+    <!-- jhipster-needle-logback-add-log - JHipster will add a new log with level, Do not remove -->
+
+    <!-- https://logback.qos.ch/manual/configuration.html#shutdownHook and https://jira.qos.ch/browse/LOGBACK-1090 -->
+    <shutdownHook class="ch.qos.logback.core.hook.DelayingShutdownHook"/>
+
+    <contextListener class="ch.qos.logback.classic.jul.LevelChangePropagator">
+        <resetJUL>true</resetJUL>
+    </contextListener>
+
+</configuration>
