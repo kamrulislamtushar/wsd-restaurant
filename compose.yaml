@@ -28,4 +28,4 @@ services:
       - POSTGRES_PASSWORD=postgres
       - POSTGRES_DB=orderManagement
     ports:
-      - "5431:5431"
+      - "5432:5432"
