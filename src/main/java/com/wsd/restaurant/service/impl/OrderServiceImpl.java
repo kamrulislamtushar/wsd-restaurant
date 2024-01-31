@@ -1,6 +1,7 @@
 package com.wsd.restaurant.service.impl;
 
 import com.wsd.restaurant.domain.Order;
+import com.wsd.restaurant.dto.SaleDayInfo;
 import com.wsd.restaurant.repository.OrderRepository;
 import com.wsd.restaurant.service.OrderService;
 import com.wsd.restaurant.dto.OrderDTO;
@@ -8,6 +9,7 @@ import com.wsd.restaurant.mapper.OrderMapper;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Optional;
 import org.slf4j.Logger;
@@ -97,5 +99,15 @@ public class OrderServiceImpl implements OrderService {
     @Override
     public List<OrderDTO> getCustomerOrders(Long userId) {
         return orderRepository.findAllByUserId(userId).stream().map(orderMapper::toDto).toList();
+    }
+
+    @Override
+    public SaleDayInfo getMaxSaleDay(String startDate, String endDate) {
+        LocalDate startLocalDate = LocalDate.parse(startDate, DateTimeFormatter.ofPattern("dd-MM-yyyy"));
+        LocalDate endLocalDate = LocalDate.parse(endDate, DateTimeFormatter.ofPattern("dd-MM-yyyy"));
+
+        Instant startInstant = startLocalDate.atStartOfDay(ZoneId.systemDefault()).toInstant();
+        Instant endInstant = endLocalDate.atStartOfDay(ZoneId.systemDefault()).toInstant().plusSeconds(86399); // End of the day
+        return orderRepository.findMaxSaleDay(startInstant, endInstant);
     }
 }

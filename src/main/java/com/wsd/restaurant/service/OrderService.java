@@ -1,6 +1,8 @@
 package com.wsd.restaurant.service;
 
 import com.wsd.restaurant.dto.OrderDTO;
+import com.wsd.restaurant.dto.SaleDayInfo;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import org.aspectj.weaver.ast.Or;
@@ -57,5 +59,7 @@ public interface OrderService {
     Double findTodayTotalSaleAmount();
 
     List<OrderDTO> getCustomerOrders(Long userId);
+
+    SaleDayInfo getMaxSaleDay(String startDate, String endDate);
 
 }
