@@ -27,6 +27,3 @@ spring:
     # Remove 'faker' if you do not want the sample data to be loaded automatically
     contexts: dev, faker
 
-
-server:
-  port: 8080
