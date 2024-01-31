@@ -1,9 +1,31 @@
+version: '3.8'
+
 services:
-  postgres:
-    image: 'postgres:latest'
+  app:
+    image: 'docker-spring-boot-postgres:latest'
+    build:
+      context: src/main/docker
+    container_name: app
+    depends_on:
+      - db
     environment:
-      - 'POSTGRES_DB=mydatabase'
-      - 'POSTGRES_PASSWORD=secret'
-      - 'POSTGRES_USER=myuser'
+      - SPRING_PROFILES_ACTIVE=prod
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://db:5432/orderManagement
+      - SPRING_DATASOURCE_USERNAME=postgres
+      - SPRING_DATASOURCE_PASSWORD=postgres
+      - SPRING_JPA_HIBERNATE_DDL_AUTO=update
+
     ports:
-      - '5432'
+      - "8088:8088"
+
+  db:
+    image: postgres
+    container_name: db
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=orderManagement
+    ports:
+      - "5431:5431"
