@@ -18,5 +18,5 @@ docker compose up
 Once the application is running it can be accessed via 
 
 ```
-http://localhost:8088
+http://localhost:8080
 ```
