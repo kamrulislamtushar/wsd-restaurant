@@ -1,6 +1,100 @@
-// ============================================
-// FILE 1: XssRequestParamFilter.java - STRICT
-// ============================================
+/*
+ * ============================================================================
+ * XSS Protection Implementation - Complete Solution
+ * ============================================================================
+ *
+ * ARCHITECTURE:
+ * - Sanitizes ALL user input (query params, form data, JSON bodies, model attributes)
+ * - Does NOT sanitize JSP responses (both full pages and fragments are trusted)
+ * - Strips ALL HTML from user data (Safelist.none())
+ *
+ * FILES INCLUDED:
+ * 1. CustomSafelist.java
+ * 2. XSSSanitizer.java
+ * 3. XssRequestParamFilter.java (includes XssRequestWrapper)
+ * 4. XssRequestBodyAdvice.java
+ * 5. XssModelSanitizerInterceptor.java
+ * 6. WebMvcConfig.java
+ *
+ * ============================================================================
+ */
+
+
+// ============================================================================
+// FILE 1: com/legacy/filter/CustomSafelist.java
+// ============================================================================
+package com.legacy.filter;
+
+import org.jsoup.safety.Safelist;
+
+/**
+ * XSS Safelist Configuration
+ *
+ * Uses Safelist.none() which strips ALL HTML tags from user input.
+ * This is the most secure option when your application never needs HTML as input.
+ */
+public class CustomSafelist {
+
+    private static Safelist instance;
+
+    /**
+     * Get the safelist instance
+     * @return Safelist that strips ALL HTML
+     */
+    public static Safelist get() {
+        if (instance == null) {
+            instance = Safelist.none();
+        }
+        return instance;
+    }
+}
+
+
+// ============================================================================
+// FILE 2: com/legacy/filter/XSSSanitizer.java
+// ============================================================================
+package com.legacy.filter;
+
+import org.jsoup.Jsoup;
+import org.jsoup.safety.Safelist;
+
+/**
+ * XSS Sanitization Utility
+ *
+ * Provides methods to clean user input by stripping ALL HTML tags.
+ */
+public class XSSSanitizer {
+
+    /**
+     * Clean user input by stripping ALL HTML tags
+     *
+     * @param input Raw user input (may contain HTML/scripts)
+     * @return Sanitized text with all HTML stripped
+     *
+     * Examples:
+     * - Input:  "<script>alert('XSS')</script>Hello"
+     *   Output: "Hello"
+     *
+     * - Input:  "<b>Bold</b> text"
+     *   Output: "Bold text"
+     *
+     * - Input:  "Plain text"
+     *   Output: "Plain text"
+     */
+    public static String cleanUserInput(String input) {
+        if (input == null || input.trim().isEmpty()) {
+            return input;
+        }
+
+        // Safelist.none() strips ALL HTML tags, keeping only text content
+        return Jsoup.clean(input, Safelist.none());
+    }
+}
+
+
+// ============================================================================
+// FILE 3: com/legacy/filter/XssRequestParamFilter.java
+// ============================================================================
 package com.legacy.filter;
 
 import javax.servlet.*;
@@ -10,35 +104,66 @@ import java.io.IOException;
 import java.util.*;
 
 /**
- * STRICT MODE: Strips ALL HTML from request parameters
+ * Servlet Filter to sanitize ALL request parameters
+ *
+ * Intercepts and sanitizes:
+ * - Query parameters (e.g., /search?q=value)
+ * - Form data (POST with application/x-www-form-urlencoded)
+ * - Any data accessed via request.getParameter()
+ *
+ * This is Layer 1 of XSS protection (earliest entry point)
  */
 public class XssRequestParamFilter implements Filter {
+
+    @Override
+    public void init(FilterConfig filterConfig) throws ServletException {
+        // No initialization needed
+    }
 
     @Override
     public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)
             throws IOException, ServletException {
 
+        // Wrap the request to sanitize parameters on-the-fly
         XssRequestWrapper wrappedRequest = new XssRequestWrapper((HttpServletRequest) request);
+
+        // Continue the filter chain with sanitized request
         chain.doFilter(wrappedRequest, response);
+    }
+
+    @Override
+    public void destroy() {
+        // No cleanup needed
     }
 }
 
+/**
+ * HttpServletRequest wrapper that sanitizes all parameter access
+ */
 class XssRequestWrapper extends HttpServletRequestWrapper {
 
     public XssRequestWrapper(HttpServletRequest request) {
         super(request);
     }
 
+    /**
+     * Sanitize single parameter value
+     */
     @Override
     public String getParameter(String name) {
         String value = super.getParameter(name);
         return sanitize(value);
     }
 
+    /**
+     * Sanitize array of parameter values
+     */
     @Override
     public String[] getParameterValues(String name) {
         String[] values = super.getParameterValues(name);
-        if (values == null) return null;
+        if (values == null) {
+            return null;
+        }
 
         String[] sanitized = new String[values.length];
         for (int i = 0; i < values.length; i++) {
@@ -47,6 +172,9 @@ class XssRequestWrapper extends HttpServletRequestWrapper {
         return sanitized;
     }
 
+    /**
+     * Sanitize entire parameter map
+     */
     @Override
     public Map<String, String[]> getParameterMap() {
         Map<String, String[]> originalMap = super.getParameterMap();
@@ -66,18 +194,21 @@ class XssRequestWrapper extends HttpServletRequestWrapper {
         return sanitizedMap;
     }
 
+    /**
+     * Sanitize a single value by stripping all HTML
+     */
     private String sanitize(String value) {
         if (value == null || value.trim().isEmpty()) {
             return value;
         }
-        // STRICT: Strip ALL HTML
         return XSSSanitizer.cleanUserInput(value);
     }
 }
 
-// ============================================
-// FILE 2: XssRequestBodyAdvice.java - STRICT
-// ============================================
+
+// ============================================================================
+// FILE 4: com/legacy/filter/XssRequestBodyAdvice.java
+// ============================================================================
 package com.legacy.filter;
 
 import org.springframework.core.MethodParameter;
@@ -92,7 +223,16 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * STRICT MODE: Strips ALL HTML from request bodies
+ * Request Body Advice to sanitize JSON/XML request bodies
+ *
+ * Intercepts @RequestBody annotated parameters and sanitizes all string fields.
+ * This is Layer 2 of XSS protection.
+ *
+ * Example:
+ * @PostMapping("/user/create")
+ * public String create(@RequestBody UserDTO user) {
+ *     // user.name, user.email, etc. are already sanitized
+ * }
  */
 @ControllerAdvice
 public class XssRequestBodyAdvice extends RequestBodyAdviceAdapter {
@@ -100,6 +240,7 @@ public class XssRequestBodyAdvice extends RequestBodyAdviceAdapter {
     @Override
     public boolean supports(MethodParameter methodParameter, Type targetType,
                             Class<? extends HttpMessageConverter<?>> converterType) {
+        // Apply to ALL request bodies
         return true;
     }
 
@@ -107,46 +248,63 @@ public class XssRequestBodyAdvice extends RequestBodyAdviceAdapter {
     public Object afterBodyRead(Object body, HttpInputMessage inputMessage,
                                 MethodParameter parameter, Type targetType,
                                 Class<? extends HttpMessageConverter<?>> converterType) {
+        // Sanitize the request body before it reaches the controller
         return sanitizeObject(body);
     }
 
+    /**
+     * Recursively sanitize an object
+     */
     private Object sanitizeObject(Object body) {
-        if (body == null) return null;
+        if (body == null) {
+            return null;
+        }
 
         if (body instanceof Map) {
+            // Sanitize Map values
             Map<Object, Object> map = (Map<Object, Object>) body;
             map.replaceAll((k, v) -> v instanceof String ?
                     XSSSanitizer.cleanUserInput((String) v) : v);
         } else if (body instanceof List) {
+            // Sanitize List elements
             ((List<?>) body).forEach(this::sanitizeObject);
         } else {
+            // Sanitize POJO fields
             sanitizeFields(body);
         }
 
         return body;
     }
 
+    /**
+     * Sanitize all String fields in an object using reflection
+     */
     private void sanitizeFields(Object obj) {
-        if (obj == null) return;
+        if (obj == null) {
+            return;
+        }
 
-        for (Field field : obj.getClass().getDeclaredFields()) {
+        Field[] fields = obj.getClass().getDeclaredFields();
+        for (Field field : fields) {
             if (field.getType().equals(String.class)) {
                 field.setAccessible(true);
                 try {
-                    String val = (String) field.get(obj);
-                    if (val != null) {
-                        // STRICT: Strip ALL HTML
-                        field.set(obj, XSSSanitizer.cleanUserInput(val));
+                    String value = (String) field.get(obj);
+                    if (value != null) {
+                        field.set(obj, XSSSanitizer.cleanUserInput(value));
                     }
-                } catch (IllegalAccessException ignored) {}
+                } catch (IllegalAccessException e) {
+                    // Skip fields we can't access
+                }
             }
         }
     }
 }
 
-// ============================================
-// FILE 3: XssModelSanitizerInterceptor.java - STRICT
-// ============================================
+
+// ============================================================================
+// FILE 5: com/legacy/filter/XssModelSanitizerInterceptor.java
+// ============================================================================
 package com.legacy.filter;
 
 import org.springframework.stereotype.Component;
@@ -161,11 +319,29 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * STRICT MODE: Strips ALL HTML from model attributes before JSP rendering
+ * Handler Interceptor to sanitize Model attributes before JSP rendering
+ *
+ * This is Layer 3 (final layer) of XSS protection.
+ * Sanitizes all data added to Model before it reaches the JSP view.
+ *
+ * This ensures that ${...} expressions in JSPs display safe content.
+ *
+ * Example:
+ * @GetMapping("/profile")
+ * public String showProfile(Model model) {
+ *     model.addAttribute("userName", userInput);  // Sanitized by this interceptor
+ *     return "profile";  // profile.jsp
+ * }
+ *
+ * In JSP:
+ * <div>${userName}</div>  <!-- Safe, already sanitized -->
  */
 @Component
 public class XssModelSanitizerInterceptor implements HandlerInterceptor {
 
+    /**
+     * Called after controller method executes but before JSP renders
+     */
     @Override
     public void postHandle(HttpServletRequest request,
                           HttpServletResponse response,
@@ -176,13 +352,7 @@ public class XssModelSanitizerInterceptor implements HandlerInterceptor {
             return;
         }
 
-        // Don't sanitize the main page load
-        String viewName = modelAndView.getViewName();
-        if (viewName != null && (viewName.equals("main") || viewName.equals("home"))) {
-            return;
-        }
-
-        // STRICT: Strip ALL HTML from model attributes
+        // Sanitize all model attributes
         ModelMap model = modelAndView.getModelMap();
         model.forEach((key, value) -> {
             Object sanitized = sanitizeObject(value);
@@ -190,33 +360,50 @@ public class XssModelSanitizerInterceptor implements HandlerInterceptor {
         });
     }
 
+    /**
+     * Recursively sanitize an object
+     */
     private Object sanitizeObject(Object obj) {
-        if (obj == null) return null;
+        if (obj == null) {
+            return null;
+        }
 
         if (obj instanceof String) {
-            // STRICT: Strip ALL HTML
+            // Sanitize string values
             return XSSSanitizer.cleanUserInput((String) obj);
         } else if (obj instanceof Map) {
+            // Sanitize Map values
             Map<Object, Object> map = (Map<Object, Object>) obj;
             map.replaceAll((k, v) -> sanitizeObject(v));
             return map;
         } else if (obj instanceof List) {
+            // Sanitize List elements
             List<?> list = (List<?>) obj;
             for (int i = 0; i < list.size(); i++) {
                 ((List<Object>) list).set(i, sanitizeObject(list.get(i)));
             }
             return list;
         } else {
+            // Sanitize POJO fields
             sanitizeFields(obj);
             return obj;
         }
     }
 
+    /**
+     * Sanitize all String fields in an object using reflection
+     */
     private void sanitizeFields(Object obj) {
-        if (obj == null) return;
+        if (obj == null) {
+            return;
+        }
 
         Class<?> clazz = obj.getClass();
-        if (clazz.getName().startsWith("java.") || clazz.isPrimitive()) {
+
+        // Skip Java built-in classes
+        if (clazz.getName().startsWith("java.") ||
+            clazz.getName().startsWith("javax.") ||
+            clazz.isPrimitive()) {
             return;
         }
 
@@ -226,108 +413,199 @@ public class XssModelSanitizerInterceptor implements HandlerInterceptor {
 
             try {
                 Object value = field.get(obj);
-                if (value == null) continue;
+                if (value == null) {
+                    continue;
+                }
 
                 if (field.getType().equals(String.class)) {
-                    // STRICT: Strip ALL HTML
+                    // Sanitize string fields
                     String sanitized = XSSSanitizer.cleanUserInput((String) value);
                     field.set(obj, sanitized);
                 } else if (!field.getType().isPrimitive() &&
                            !field.getType().getName().startsWith("java.")) {
+                    // Recursively sanitize nested objects
                     sanitizeFields(value);
                 }
-            } catch (IllegalAccessException ignored) {}
+            } catch (IllegalAccessException e) {
+                // Skip fields we can't access
+            }
         }
     }
 }
 
-// ============================================
-// FILE 4: XssResponseBodyAdvice.java - STRICT
-// ============================================
-package com.legacy.filter;
 
-import org.springframework.core.MethodParameter;
-import org.springframework.http.MediaType;
-import org.springframework.http.server.ServerHttpRequest;
-import org.springframework.http.server.ServerHttpResponse;
-import org.springframework.web.bind.annotation.ControllerAdvice;
-import org.springframework.web.servlet.mvc.method.annotation.ResponseBodyAdvice;
+// ============================================================================
+// FILE 6: com/legacy/config/WebMvcConfig.java
+// ============================================================================
+package com.legacy.config;
 
-import java.lang.reflect.Field;
-import java.util.List;
-import java.util.Map;
+import com.legacy.filter.XssModelSanitizerInterceptor;
+import com.legacy.filter.XssRequestParamFilter;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.web.servlet.FilterRegistrationBean;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.core.Ordered;
+import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
+import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 /**
- * STRICT MODE: Strips ALL HTML from response bodies
- * Skips full page loads to preserve JSP structure
+ * Spring MVC Configuration for XSS Protection
+ *
+ * Registers:
+ * 1. XssRequestParamFilter - Servlet filter for request parameters
+ * 2. XssModelSanitizerInterceptor - Spring interceptor for model attributes
  */
-@ControllerAdvice
-public class XssResponseBodyAdvice implements ResponseBodyAdvice<Object> {
+@Configuration
+public class WebMvcConfig implements WebMvcConfigurer {
 
+    @Autowired
+    private XssModelSanitizerInterceptor xssModelSanitizerInterceptor;
+
+    /**
+     * Register the XSS request parameter filter
+     *
+     * This filter runs FIRST (HIGHEST_PRECEDENCE) to sanitize all incoming parameters
+     * before any other processing occurs.
+     */
+    @Bean
+    public FilterRegistrationBean<XssRequestParamFilter> xssRequestParamFilter() {
+        FilterRegistrationBean<XssRequestParamFilter> registrationBean =
+            new FilterRegistrationBean<>();
+
+        registrationBean.setFilter(new XssRequestParamFilter());
+        registrationBean.addUrlPatterns("/*");  // Apply to all URLs
+        registrationBean.setOrder(Ordered.HIGHEST_PRECEDENCE);  // Run first
+        registrationBean.setName("XssRequestParamFilter");
+
+        return registrationBean;
+    }
+
+    /**
+     * Register the XSS model sanitizer interceptor
+     *
+     * This interceptor runs AFTER controller methods but BEFORE JSP rendering
+     * to sanitize all model attributes.
+     */
     @Override
-    public boolean supports(MethodParameter returnType, Class converterType) {
-        return true;
-    }
-
-    @Override
-    public Object beforeBodyWrite(Object body, MethodParameter returnType,
-                                  MediaType selectedContentType,
-                                  Class selectedConverterType,
-                                  ServerHttpRequest request,
-                                  ServerHttpResponse response) {
-
-        String path = request.getURI().getPath();
-
-        // DON'T sanitize full page loads (they need HTML structure)
-        if (path.equals("/home") || path.endsWith(".jsp") || path.equals("/")) {
-            return body;
-        }
-
-        // STRICT: Strip ALL HTML from AJAX/API responses
-        return sanitizeObject(body);
-    }
-
-    private Object sanitizeObject(Object body) {
-        if (body == null) return null;
-
-        if (body instanceof String) {
-            // STRICT: Strip ALL HTML
-            return XSSSanitizer.cleanUserInput((String) body);
-        } else if (body instanceof Map) {
-            Map<Object, Object> map = (Map<Object, Object>) body;
-            map.replaceAll((k, v) -> sanitizeObject(v));
-            return map;
-        } else if (body instanceof List) {
-            List<?> list = (List<?>) list;
-            for (int i = 0; i < list.size(); i++) {
-                ((List<Object>) list).set(i, sanitizeObject(list.get(i)));
-            }
-            return list;
-        } else {
-            sanitizeFields(body);
-            return body;
-        }
-    }
-
-    private void sanitizeFields(Object obj) {
-        if (obj == null || obj.getClass().getName().startsWith("java.")) {
-            return;
-        }
-
-        for (Field field : obj.getClass().getDeclaredFields()) {
-            field.setAccessible(true);
-            try {
-                Object value = field.get(obj);
-                if (value == null) continue;
-
-                if (field.getType().equals(String.class)) {
-                    // STRICT: Strip ALL HTML
-                    field.set(obj, XSSSanitizer.cleanUserInput((String) value));
-                } else if (!field.getType().isPrimitive() &&
-                           !field.getType().getName().startsWith("java.")) {
-                    sanitizeFields(value);
-                }
-            } catch (IllegalAccessException ignored) {}
-        }
+    public void addInterceptors(InterceptorRegistry registry) {
+        registry.addInterceptor(xssModelSanitizerInterceptor)
+                .addPathPatterns("/**")  // Apply to all paths
+                .excludePathPatterns(
+                    "/static/**",    // Exclude static resources
+                    "/css/**",
+                    "/js/**",
+                    "/images/**",
+                    "/webjars/**",
+                    "/favicon.ico"
+                );
     }
 }
+
+
+/*
+ * ============================================================================
+ * USAGE EXAMPLES
+ * ============================================================================
+ */
+
+/*
+// Example 1: Query Parameters
+@GetMapping("/search")
+public String search(@RequestParam String query, Model model) {
+    // query is already sanitized by XssRequestParamFilter
+    // If user sent: ?query=<script>alert('XSS')</script>
+    // You receive: query = "" (empty, HTML stripped)
+
+    model.addAttribute("searchQuery", query);
+    return "searchResults";
+}
+
+// Example 2: Request Body
+@PostMapping("/user/create")
+public String createUser(@RequestBody UserDTO user, Model model) {
+    // user.name, user.email, etc. are already sanitized by XssRequestBodyAdvice
+    // If user sent: {"name": "<script>alert('XSS')</script>John"}
+    // You receive: user.name = "John" (script stripped)
+
+    userService.save(user);
+    model.addAttribute("user", user);
+    return "userCreated";
+}
+
+// Example 3: Model Attributes
+@GetMapping("/profile")
+public String showProfile(Model model) {
+    String userName = getUserNameFromDB();  // May contain malicious data
+    model.addAttribute("userName", userName);
+    // XssModelSanitizerInterceptor will sanitize userName before JSP renders
+    return "profile";
+}
+
+// JSP (profile.jsp) - SAFE
+<div class="container">
+    <h1>Welcome, ${userName}</h1>  <!-- Safe, sanitized by interceptor -->
+    <p>${userBio}</p>              <!-- Safe, sanitized by interceptor -->
+    <script src="profile.js"></script>  <!-- Your trusted JS file, preserved -->
+</div>
+
+// Example 4: Fragment JSP with inline JS
+// fundTransferForm.jsp
+<div class="transfer-form">
+    <form action="/transfer" method="POST">
+        <input type="text" name="amount" value="${amount}">  <!-- Safe -->
+        <button type="submit">Transfer</button>
+    </form>
+</div>
+<script>
+    // Your trusted inline JavaScript - preserved
+    $(function() {
+        $('#transfer-form').validate();
+    });
+</script>
+<script src="fund-transfer.js"></script>  <!-- Your JS file - preserved -->
+*/
+
+
+/*
+ * ============================================================================
+ * TESTING
+ * ============================================================================
+ */
+
+/*
+// Test 1: Query Parameter XSS
+curl "http://localhost:8080/search?query=<script>alert('XSS')</script>"
+// Expected: query parameter should be empty or "alert('XSS')" without tags
+
+// Test 2: Request Body XSS
+curl -X POST http://localhost:8080/user/create \
+  -H "Content-Type: application/json" \
+  -d '{"name": "<b>John</b><script>alert(1)</script>", "email": "test@test.com"}'
+// Expected: name = "John" (all HTML stripped)
+
+// Test 3: Model Attribute XSS
+// Controller: model.addAttribute("comment", "<img src=x onerror=alert(1)>");
+// JSP: <div>${comment}</div>
+// Expected output in HTML: <div></div> (image tag stripped)
+
+// Test 4: JSP Structure Preserved
+curl http://localhost:8080/fundTransfer
+// Expected: Should return JSP with <script> tags intact
+*/
+
+
+/*
+ * ============================================================================
+ * MAVEN DEPENDENCIES
+ * ============================================================================
+ */
+
+/*
+<!-- Add to pom.xml -->
+<dependency>
+    <groupId>org.jsoup</groupId>
+    <artifactId>jsoup</artifactId>
+    <version>1.17.2</version>
+</dependency>
+*/

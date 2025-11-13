@@ -46,9 +46,45 @@ public class CustomSafelist {
     }
 
     /**
-     * For rendering JSP responses (full pages only)
-     * This preserves HTML structure for main.jsp and other full page loads
+     * For HTML fragments (JSPs loaded via AJAX into #main-content)
+     * Preserves form structure but strips dangerous content
      */
+    public static Safelist getForFragments() {
+        Safelist safelist = new Safelist();
+
+        // Allow structure tags (NO script, style, or meta)
+        safelist.addTags("div", "span", "p", "br",
+                "table", "thead", "tbody", "tr", "th", "td",
+                "ul", "ol", "li", "section", "article", "header", "footer");
+
+        // Text formatting
+        safelist.addTags("b", "i", "u", "strong", "em", "small",
+                "h1", "h2", "h3", "h4", "h5", "h6", "hr");
+
+        // Links and images (safe protocols only)
+        safelist.addTags("a", "img");
+        safelist.addAttributes("a", "href", "title", "target");
+        safelist.addProtocols("a", "href", "http", "https", "#");
+        safelist.addAttributes("img", "src", "alt", "width", "height");
+        safelist.addProtocols("img", "src", "http", "https", "data");
+
+        // Form elements (your JSPs need these)
+        safelist.addTags("form", "input", "select", "option", "textarea", "label", "button");
+        safelist.addAttributes("form", "action", "method", "id", "name", "class");
+        safelist.addAttributes("input", "type", "name", "value", "placeholder",
+                "checked", "id", "class", "disabled", "readonly", "required");
+        safelist.addAttributes("select", "name", "id", "class", "multiple");
+        safelist.addAttributes("option", "value", "selected");
+        safelist.addAttributes("textarea", "name", "rows", "cols", "placeholder", "id", "class");
+        safelist.addAttributes("button", "type", "name", "value", "id", "class");
+
+        // Global attributes (for your SPA functionality)
+        safelist.addAttributes(":all", "id", "class", "style", "title", "data-*", "aria-*");
+
+        // NO script, link, style, meta tags allowed in fragments
+
+        return safelist;
+    }
     public static Safelist getForFullPageResponse() {
         Safelist safelist = new Safelist();
 
