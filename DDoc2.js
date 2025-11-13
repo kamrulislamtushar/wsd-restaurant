@@ -1,14 +1,24 @@
 (function ($) {
   const _oldHtml = $.fn.html;
 
+  // Detect context path automatically
+  const CONTEXT_PATH = (function () {
+    const path = window.location.pathname;
+    // Take first path segment, e.g. "/mycms/something" → "/mycms"
+    const firstSegment = '/' + path.split('/')[1];
+    return firstSegment === '/' ? '' : firstSegment;
+  })();
+
+  // Now use that in your safe script patterns
   const SAFE_SCRIPT_PATTERNS = [
-    /^\/js\//,
-    /^\/static\/js\//,
+    new RegExp(`^${CONTEXT_PATH}/js/`),
+    new RegExp(`^${CONTEXT_PATH}/static/js/`),
     /^https:\/\/cdn\.jsdelivr\.net\//,
     /^https:\/\/cdnjs\.cloudflare\.com\//,
     /^https:\/\/ajax\.googleapis\.com\//,
     /^https:\/\/([a-z0-9-]+\.)*xy\.com\//i
   ];
+
 
   const SAFE_INLINE_PATTERNS = [
     /^init[A-Z]/,
