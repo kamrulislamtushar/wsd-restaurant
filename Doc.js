@@ -1,122 +1,70 @@
-(function() {
-  const TOKEN_META_NAME = "customToken";
+(function ($) {
+  const _oldHtml = $.fn.html;
 
-  // ==============================
-  // Get token from meta tag
-  // ==============================
-  function getCustomToken() {
-    const meta = document.querySelector(`meta[name="${TOKEN_META_NAME}"]`);
-    return meta ? meta.getAttribute("content") : null;
-  }
+  // Define known-safe script sources (prefix or domain)
+  const SAFE_SCRIPT_PATTERNS = [
+    /^\/js\//,
+    /^\/static\/js\//,
+    /^https:\/\/cdn\.jsdelivr\.net\//,
+    /^https:\/\/cdnjs\.cloudflare\.com\//,
+    /^https:\/\/ajax\.googleapis\.com\//,
+    /^https:\/\/([a-z0-9-]+\.)*xy\.com\//i  // allow any subdomain of xy.com
+  ];
 
-  const customToken = getCustomToken();
+  // Allow specific inline script naming patterns
+  const SAFE_INLINE_PATTERNS = [
+    /^init[A-Z]/,
+    /^load[A-Z]/
+  ];
 
-  // ==============================
-  // Sanitize HTML input
-  // ==============================
-  function sanitizeHTML(input) {
-    if (!input || typeof input !== "string") return input;
+  $.fn.html = function (value) {
+    if (typeof value === 'string') {
+      const $temp = $('<div>').append($.parseHTML(value, document, true));
 
-    return input
-      .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "")
-      .replace(/\son\w+\s*=\s*(['"]).*?\1/gi, "")
-      .replace(/(javascript:|data:text\/html)/gi, "")
-      .replace(/<\/?(iframe|object|embed|applet)[^>]*>/gi, "");
-  }
+      // Sanitize scripts
+      $temp.find('script').each(function () {
+        const src = $(this).attr('src');
+        const js = $(this).text();
 
-  // ==============================
-  // Extract script attributes
-  // ==============================
-  function extractAttr(attrs, name) {
-    if (!attrs) return null;
-    try {
-      const div = document.createElement("div");
-      div.innerHTML = "<div " + attrs + "></div>";
-      return div.firstChild ? div.firstChild.getAttribute(name) : null;
-    } catch {
-      const match = attrs.match(
-        new RegExp(name + "\\s*=\\s*(?:\"([^\"]*)\"|'([^']*)'|([^\\s>]+))", "i")
-      );
-      return match ? match[1] || match[2] || match[3] : null;
-    }
-  }
-
-  // ==============================
-  // Safely inject HTML + execute scripts
-  // ==============================
-  function safeInjectHtml($target, value) {
-    if (typeof value !== "string") return $target.html(value);
-
-    let sanitized = sanitizeHTML(value);
-    const scripts = [];
-
-    sanitized = sanitized.replace(
-      /<script\b([^>]*)>([\s\S]*?)<\/script>/gi,
-      function(_, attrs, code) {
-        const src = extractAttr(attrs, "src");
-        scripts.push({ src, code });
-        return ""; // remove scripts from injected HTML
-      }
-    );
-
-    const $result = $target.html(sanitized);
-
-    scripts.forEach(script => {
-      try {
-        // Load external script
-        if (script.src) {
-          const s = document.createElement("script");
-          s.src =
-            script.src +
-            (customToken
-              ? (script.src.includes("?") ? "&" : "?") +
-                TOKEN_META_NAME +
-                "=" +
-                encodeURIComponent(customToken)
-              : "");
-          s.async = false;
-          document.body.appendChild(s);
+        if (src) {
+          const isSafe = SAFE_SCRIPT_PATTERNS.some(pattern => pattern.test(src));
+          if (!isSafe) {
+            console.warn('[XSSGuard] Blocked script source:', src);
+            $(this).remove();
+          }
+        } else if (js) {
+          const matches = SAFE_INLINE_PATTERNS.some(pat => pat.test(js.trim()));
+          if (!matches) {
+            console.warn('[XSSGuard] Blocked inline script:', js.substring(0, 60) + '...');
+            $(this).remove();
+          }
         }
-        // Execute inline script securely
-        else if (script.code && script.code.trim()) {
-          const s = document.createElement("script");
-          s.textContent = `
-            (function(){
-              const token = "${customToken || ""}";
-              if(token) window.currentToken = token;
-              ${script.code}
-            })();
-          `;
-          document.body.appendChild(s);
+      });
+
+      const result = _oldHtml.call(this, $temp.html());
+
+      // Re-execute allowed scripts manually
+      $temp.find('script').each(function () {
+        const src = $(this).attr('src');
+        const js = $(this).text();
+
+        if (src) {
+          $.getScript(src).fail(() =>
+              console.error('[XSSGuard] Failed to load script:', src)
+          );
+        } else if (js) {
+          try {
+            new Function(js)();
+          } catch (e) {
+            console.error('[XSSGuard] Script exec error:', e);
+          }
         }
-      } catch (err) {
-        console.error("Safe script execution error:", err);
-      }
-    });
+      });
 
-    return $result;
-  }
-
-  // ==============================
-  // Override jQuery methods
-  // ==============================
-  const originalHtml = jQuery.fn.html;
-  const originalAppend = jQuery.fn.append;
-
-  jQuery.fn.html = function(value) {
-    if (arguments.length === 0) {
-      return originalHtml.call(this);
+      return result;
     }
-    return safeInjectHtml(this, value);
+
+    // Default .html() behavior for getters
+    return _oldHtml.apply(this, arguments);
   };
-
-  jQuery.fn.append = function(value) {
-    if (typeof value === "string") {
-      value = sanitizeHTML(value);
-    }
-    return originalAppend.call(this, value);
-  };
-
-  console.log("[SafeHTML] Enabled — XSS protection active using custom token");
-})();
-
+})(jQuery);
