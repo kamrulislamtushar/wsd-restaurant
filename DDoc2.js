@@ -29,11 +29,15 @@
     /^https:\/\/([a-z0-9-]+\.)*xy\.com\//i
   ];
 
-  // Allowed inline script patterns (optional, adjust as needed)
+  // Inline script safety rules
   const SAFE_INLINE_PATTERNS = [
-    /^init[A-Z]/,
-    /^load[A-Z]/
+    /^init[A-Z]/,                                      // Your existing ones
+    /^load[A-Z]/,
+    /\$\(\s*document\s*\)\.ready\s*\(/,                // jQuery ready
+    /document\.addEventListener\s*\(\s*['"]DOMContentLoaded['"]/, // Vanilla JS ready
+    /\$\(\s*function\s*\(/                             // Short-hand jQuery ready
   ];
+
 
   $.fn.html = function (value) {
     if (typeof value === 'string') {
