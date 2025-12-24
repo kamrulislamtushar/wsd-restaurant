@@ -190,3 +190,6 @@ http://localhost:8080
 - `staging` is an environment, not a branch.
 - Include issue IDs in branch names for traceability (e.g., `feature/1234-duplicate-login`).
 - Hotfix branches always start from `main` and must be merged back into both `main` and `development`.
+
+set JAVA_OPTIONS=%JAVA_OPTIONS% -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=5005
+
