@@ -141,3 +141,52 @@ http://localhost:8080
 
   console.log("[SafeHTML] Enabled — XSS protection active using custom token");
 })();
+
+# Git Branching & Deployment Strategy
+
+## Primary Branches
+
+| Branch        | Purpose |
+|---------------|---------|
+| `main`        | Production-ready code. Only production-approved features/hotfixes are merged here. |
+| `staging`     | Pre-production/sanity environment. Used to test production copy + latest approved features. |
+| `development` | UAT/QA branch. Feature branches are deployed here for QA testing before production. |
+
+## Supporting Branches
+
+- **Feature branches**: `feature/<feature-name>`
+    - Created from `development`.
+    - For new features or enhancements.
+- **Hotfix branches**: `hotfix/<issue-name>`
+    - Created from `main` for production issues.
+
+## Branch Flow
+
+1. **Feature Branch Development**
+    - Developers create a feature branch from `development`.
+    - Commit work and push to remote.
+
+2. **QA / UAT Testing**
+    - Deploy the feature branch to **development environment (UAT/QA)** for testing.
+    - Fix any issues directly in the feature branch.
+
+3. **Pre-Production / Staging**
+    - Deploy approved feature branches to **staging environment** for sanity testing.
+    - Staging environment is production-like; it is **not a branch**.
+
+4. **Production Deployment**
+    - Merge the **feature branch directly into `main`** after QA and staging verification.
+    - CI/CD deploys `main` to production.
+    - Optionally, merge `main` back into `development` to keep branches in sync.
+
+5. **Hotfix Workflow**
+    - Hotfix branches are created from `main`.
+    - Fix issues and deploy to **staging** for verification.
+    - Merge hotfix into `main` (production) and then into `development` to stay updated.
+
+## Key Rules
+
+- Never merge `development` into `main`. Only production-approved feature/hotfix branches are merged into `main`.
+- `staging` is an environment, not a branch.
+- Include issue IDs in branch names for traceability (e.g., `feature/1234-duplicate-login`).
+- Hotfix branches always start from `main` and must be merged back into both `main` and `development`.
