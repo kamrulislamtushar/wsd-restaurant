@@ -9,7 +9,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
-
+// Logger
 @Component
 public class Slf4jMdcFilter extends OncePerRequestFilter {
   @Override
