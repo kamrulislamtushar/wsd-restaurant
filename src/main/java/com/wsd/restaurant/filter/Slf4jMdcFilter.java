@@ -22,6 +22,7 @@ public class Slf4jMdcFilter extends OncePerRequestFilter {
       chain.doFilter(request, response);
     } finally {
       MdcIdUtil.removeMdcId();
+        // new changes
     }
   }
 }
