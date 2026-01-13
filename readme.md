@@ -1,3 +1,86 @@
+private void genFooter(PdfContentByte canvas, Document document, PdfWriter writer) {
+    try {
+
+        // ---------- CONSTANTS ----------
+        float padding = 5f;
+        float noteFontSize = 8f;
+        float rectHeight = 16f;
+        float imageHeight = 40f;
+
+        // ---------- BASELINES ----------
+        float pageBottom = document.bottom();
+
+        // ---------- COPYRIGHT (PAGE BOTTOM CENTER) ----------
+        float copyrightY = pageBottom - 5;
+
+        ColumnText.showTextAligned(
+                canvas,
+                Element.ALIGN_CENTER,
+                new Phrase(copyRight, new Font(Font.TIMES_ROMAN, 8)),
+                document.getPageSize().getWidth() / 2,
+                copyrightY,
+                0
+        );
+
+        ColumnText.showTextAligned(
+                canvas,
+                Element.ALIGN_CENTER,
+                new Phrase(copyRightTwo, new Font(Font.TIMES_ROMAN, 8)),
+                document.getPageSize().getWidth() / 2,
+                copyrightY - 10,
+                0
+        );
+
+        // ---------- IMAGES (ABOVE COPYRIGHT) ----------
+        float imageY = copyrightY + 15;
+
+        Image imgLeft = Image.getInstance(pbeLogoPath);
+        Image imgRight = Image.getInstance(pbeLogoPathTwo);
+
+        imgLeft.scaleToFit(100, imageHeight);
+        imgRight.scaleToFit(100, imageHeight);
+
+        imgLeft.setAbsolutePosition(document.left(), imageY);
+        imgRight.setAbsolutePosition(
+                document.right() - imgRight.getScaledWidth(),
+                imageY
+        );
+
+        canvas.addImage(imgLeft);
+        canvas.addImage(imgRight);
+
+        // ---------- FOOTER NOTE RECTANGLE (ABOVE IMAGES) ----------
+        float rectBottom = imageY + imageHeight + 5;
+        float rectTop = rectBottom + rectHeight;
+
+        Rectangle rect = new Rectangle(
+                document.left(),
+                rectBottom,
+                document.right(),
+                rectTop
+        );
+
+        rect.setBorder(Rectangle.BOX);
+        rect.setBorderWidth(0.5f);
+        canvas.rectangle(rect);
+
+        // ---------- FOOTER NOTE TEXT (INSIDE RECTANGLE) ----------
+        ColumnText.showTextAligned(
+                canvas,
+                Element.ALIGN_LEFT,
+                new Phrase(
+                        footerNote1,
+                        new Font(Font.TIMES_ROMAN, noteFontSize)
+                ),
+                document.left() + padding,
+                rectTop - padding - noteFontSize,
+                0
+        );
+
+    } catch (Exception e) {
+        throw new RuntimeException("Footer generation failed", e);
+    }
+}
 # WSD Order Management
 
 ## Building for production
