@@ -1,0 +1,375 @@
+"use strict";
+
+// Class definition
+var FundTransferFavoriteBulkInsert = function () {
+  var tranType;
+  var processUrl;
+
+  var stepperEl;
+  var stepperObj;
+
+  var tableDefaultData;
+  var ackTable;
+  var ackTableContainer;
+  var confirmationTable;
+  var confirmationTableContainer;
+  var detailsTable;
+  var detailsTableContainer;
+
+  var favoriteInputForm;
+  var favoriteInputFormValidator;
+
+  var initNextBtn;
+  var submitBtn;
+  var ackPrintBtn;
+
+  const initStepper = function () {
+    stepperObj = new KTStepper(stepperEl, { startIndex: 1 });
+
+    initDetailsPage();
+    stepperObj.on('kt.stepper.changed', function (stepper) {
+      Array.from(stepperEl.querySelectorAll('button')).forEach(el => el.blur());
+      window.scrollTo(0, 0);
+      if (stepper.getCurrentStepIndex() === 2) {
+        initConfirmationPage();
+      }
+    });
+
+    stepperObj.on('kt.stepper.previous', function (stepper) {
+      Array.from(stepperEl.querySelectorAll('button')).forEach(el => el.blur());
+      stepper.goPrevious();
+    });
+  }
+
+  const initFormEventListeners = function () {
+
+    $(initNextBtn).on('click', function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+
+      favoriteInputFormValidator.validate().then(function (status) {
+        if (status == 'Valid') {
+          PbeApp.showPageLoading();
+          initNextBtn.disabled = true;
+          initNextBtn.setAttribute('data-kt-indicator', 'on');
+
+          var formData = {};
+          $.map($(favoriteInputForm).serializeArray(), function (n) {
+            if (n.name != 'favoriteId' && n.name != '_csrf' && n.name != 'beneName') {
+              formData[n.name] = n.value;
+            }
+          });
+
+          favoriteVerifier(formData).then((data) => {
+            PbeApp.hidePageLoading();
+            initNextBtn.removeAttribute('data-kt-indicator');
+            initNextBtn.disabled = false;
+
+            if (data == null) {
+              window.location.replace("forceLogoutRedirect");
+            }
+
+            var title = null;
+            var bodyMsg = null;
+
+            if (data.isExists) {
+              title = 'Already Exist!';
+              bodyMsg = 'Record already exists.';
+            } else if (data.isInvalid) {
+              title = 'Invalid Account No';
+              bodyMsg = 'Please insert a valid Account Number.';
+            } else if (data.isOwnAcc) {
+              title = 'Own Account No!';
+              bodyMsg = 'Please do not insert your own account number.';
+            }
+
+            if (title) {
+              Swal.fire({
+                title: title,
+                html: '<p class="pt-8 px-12 fw-semibold fs-6 text-danger">' + bodyMsg + '</p>',
+                buttonsStyling: false,
+                confirmButtonText: "Close",
+                customClass: { confirmButton: "btn btn-sm btn-secondary" }
+              });
+              return;
+            }
+
+            stepperObj.goNext();
+          });
+        }
+      });
+    });
+
+    $(submitBtn).on('click', function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+
+      PbeApp.showPageLoading();
+      submitBtn.disabled = true;
+      submitBtn.setAttribute('data-kt-indicator', 'on');
+
+      const formData = detailsTable.rows().data().toArray();
+      ajaxSubmit(formData).then((data) => {
+        PbeApp.hidePageLoading();
+        submitBtn.removeAttribute('data-kt-indicator');
+        submitBtn.disabled = false;
+
+        stepperObj.goNext();
+        initAckPage(data);
+      }).catch(function (err) {
+        PbeApp.hidePageLoading();
+        submitBtn.removeAttribute('data-kt-indicator');
+        submitBtn.disabled = false;
+        Swal.fire({
+          title: 'Error',
+          html: '<p class="pt-8 px-12 fw-semibold fs-6 text-danger">An error ocurred: ' + err.status + ' ' + err.statusText + '</p>',
+          buttonsStyling: false,
+          confirmButtonText: "Close",
+          customClass: { confirmButton: "btn btn-sm btn-secondary" }
+        });
+      });
+    });
+
+    ackPrintBtn.addEventListener('click', function (e) {
+      e.preventDefault();
+      if ($(this).data('printElement')) {
+        var toPrintElems = [];
+        $(this).data('printElement').split(",").forEach(function (c) {
+          var elems = document.querySelectorAll(c.trim());
+          if (elems.length) elems.forEach(el => toPrintElems.push($(el)));
+        });
+        if (toPrintElems.length) PbeApp.cssPrint('Save as Favourite', null, null, toPrintElems);
+      }
+    });
+
+    $(detailsTableContainer).on('input', '.editableInput', function (e) {
+      const rowData = detailsTable.row($(e.target).closest("tr")).data();
+      rowData[e.target.name] = e.target.value;
+    });
+  }
+
+  const initDetailsPage = function () {
+
+    const fields = [
+      // Beneficiary Account & Name
+      {
+        title: "Beneficiary Account",
+        className: "fw-bold fs-6 text-gray-800 min-win-175px text-center",
+        width: 200,
+        data: d => '<span class="fw-semibold">' + d.toAccNo + '</span>'
+      },
+      {
+        title: "Beneficiary Name",
+        className: "fw-bold fs-6 text-gray-800 min-w-175px text-center",
+        width: 200,
+        data: d => '<span class="fw-semibold">' + PbeApp.dashIfEmpty(d.toAccName) + '</span>'
+      },
+      // Favourite Name Input
+      {
+        title: "Favourite Account Name",
+        className: "fw-bold fs-6 text-gray-800 min-w-175px text-center",
+        width: 200,
+        data: d => '<div class="fv-row"><input type="text" class="form-control editableInput" placeholder="Enter Favourite Account Name" autocomplete="off" name="name" value="' + (d.name || '') + '"/></div>'
+      },
+      // Group Name select
+      {
+        title: "Group Name",
+        className: "fw-bold fs-6 text-gray-800 w-200px text-center",
+        data: function (data) {
+          var html = '<select class="form-select groupId" data-control="select2" data-hide-search="true" data-placeholder="Select Group Name" name="groupId"><option></option>';
+          for (var key in data.groupSelections) {
+            var selected = (data.groupId == key) ? "selected" : "";
+            html += '<option value="' + key + '" ' + selected + '>' + data.groupSelections[key] + '</option>';
+          }
+          html += '</select>';
+          return '<div class="fv-row mt-0 w-200px">' + html + '</div>' +
+            '<input type="hidden" name="toAccNo" value="' + data.toAccNo + '"/>' +
+            '<input type="hidden" name="toAccName" value="' + data.toAccName + '"/>' +
+            '<input type="hidden" name="toAccBank" value="' + data.toAccBankCode + '"/>';
+        }
+      },
+      // From Account select
+      {
+        title: "From Account No",
+        className: "fw-bold fs-6 text-gray-800 w-250px text-center",
+        data: function (data) {
+          return '<div class="fv-row mt-0 w-250px">' +
+            '<select class="form-select fromAccNo" data-control="select2" data-hide-search="true" data-placeholder="Select From Acc No." name="frmAccNo"><option></option></select>' +
+            '</div>';
+        }
+      }
+    ];
+
+    detailsTable = $(detailsTableContainer).DataTable({
+      data: tableDefaultData,
+      retrieve: true,
+      ordering: false,
+      paging: false,
+      info: false,
+      autoWidth: true,
+      columns: fields,
+      scrollY: '320px',
+      scrollX: true,
+      scrollCollapse: true,
+      fixedColumns: { left: 1 },
+      initComplete: function () {
+        initFavoriteFormValidation();
+        initFormEventListeners();
+
+        // Init select2 for all group selects
+        $(detailsTableContainer).find('.groupId').each(function () {
+          $(this).select2({ width: '100%' });
+        });
+
+        // Handle group selection
+        $(detailsTableContainer).on('select2:select', '.groupId', function (e) {
+          const groupData = e.params.data;
+          const row = $(this).closest("tr");
+          const rowData = detailsTable.row(row).data();
+          rowData.groupId = groupData.id;
+          rowData.groupName = groupData.text;
+
+          PbeApp.showPageLoading();
+          ajaxGetFromAccNo(groupData.id).then((data) => {
+            PbeApp.hidePageLoading();
+            const options = data.map(val => ({ id: val.fromAccNo, text: val.fromAccNo + " / " + val.name }));
+            const fromAccNoSelect = row.find('.fromAccNo');
+            $(fromAccNoSelect).empty().select2({ data: options, width: '100%' });
+
+            // Revalidate field on first select
+            favoriteInputFormValidator.revalidateField($(this).attr('name'));
+          }).catch(function (err) {
+            PbeApp.hidePageLoading();
+            Swal.fire({
+              title: 'Error',
+              html: '<p class="pt-8 px-12 fw-semibold fs-6 text-danger">An error ocurred: ' + err.status + ' ' + err.statusText + '</p>',
+              buttonsStyling: false,
+              confirmButtonText: "Close",
+              customClass: { confirmButton: "btn btn-sm btn-secondary" }
+            });
+          });
+        });
+
+        // Handle From Acc select revalidation
+        $(detailsTableContainer).on('select2:select', '.fromAccNo', function (e) {
+          const frmAccNoData = e.params.data;
+          const row = $(this).closest("tr");
+          const rowData = detailsTable.row(row).data();
+          rowData.frmAccNo = frmAccNoData.id;
+
+          favoriteInputFormValidator.revalidateField($(this).attr('name'));
+        });
+      }
+    });
+  }
+
+  const initConfirmationPage = function () {
+    submitBtn.disabled = false;
+    submitBtn.classList.remove('d-none');
+
+    if (confirmationTable) confirmationTable.destroy();
+
+    confirmationTable = $(confirmationTableContainer).DataTable({
+      data: detailsTable.rows().data(),
+      retrieve: true,
+      ordering: false,
+      paging: false,
+      info: false,
+      autoWidth: true,
+      columns: dataTableFields,
+      scrollY: '320px',
+      scrollX: true,
+      scrollCollapse: true,
+      fixedColumns: { left: 1 }
+    });
+  }
+
+  const initAckPage = function (data) {
+    if (ackTable) ackTable.destroy();
+
+    ackTable = $(ackTableContainer).DataTable({
+      ordering: false,
+      paging: false,
+      info: false,
+      autoWidth: true,
+      columns: dataTableFields,
+      scrollY: '320px',
+      scrollX: true,
+      scrollCollapse: true,
+      fixedColumns: { left: 1 }
+    });
+
+    ackTable.clear().rows.add(data.favoritesList).draw();
+    $('#ack-tab').find("div.submittedDateTimeNice").html(data.submittedDateNice);
+    $('#ack-tab').find("div.submitStatus").html(data.status == 1 ? "Pending Approver" : "Failed");
+  }
+
+  const ajaxGetFromAccNo = function (groupId) {
+    return $.ajax({ url: 'fundtransfer/rpp/getfrmAccNo', type: "POST", dataType: 'json', data: { groupId: groupId } });
+  }
+
+  const ajaxSubmit = function (formData) {
+    return $.ajax({
+      url: processUrl,
+      type: "POST",
+      contentType: "application/json; charset=utf-8",
+      dataType: "json",
+      data: JSON.stringify({ favoritesList: formData, status: "Test" }),
+    });
+  }
+
+  const favoriteVerifier = function (data) {
+    return $.ajax({
+      url: 'fundtransfer/' + tranType + '/favorite/accNoVerifier',
+      type: "POST",
+      contentType: "application/json; charset=utf-8",
+      dataType: 'json',
+      data: JSON.stringify(data)
+    });
+  }
+
+  const initFavoriteFormValidation = function () {
+    favoriteInputFormValidator = FormValidation.formValidation(favoriteInputForm, {
+      fields: {
+        groupId: { validators: { notEmpty: { message: 'Group Name is required.' } } },
+        frmAccNo: { validators: { notEmpty: { message: 'From Account is required.' } } },
+        name: {
+          validators: {
+            notEmpty: { message: 'Favourite Name is required.' },
+            stringLength: { max: 20, message: 'Favourite Name cannot exceed 20 characters.' },
+            regexp: { regexp: /^[a-zA-Z0-9\s]*$/, message: 'Please enter alphanumeric characters.' }
+          }
+        }
+      },
+      plugins: {
+        trigger: new FormValidation.plugins.Trigger(),
+        bootstrap: new FormValidation.plugins.Bootstrap5({
+          rowSelector: '.fv-row',
+          eleInvalidClass: 'is-invalid'
+        })
+      }
+    });
+  }
+
+  return {
+    init: function (config) {
+      tranType = config.tranType;
+      processUrl = config.processUrl;
+      tableDefaultData = config.rowData;
+
+      stepperEl = document.getElementById("fund_transfer_save_as_favorite-stepper");
+
+      detailsTableContainer = stepperEl.querySelector('table#tranTable');
+      confirmationTableContainer = stepperEl.querySelector('table#confTable');
+      ackTableContainer = stepperEl.querySelector('table#ackTable');
+
+      favoriteInputForm = stepperEl.querySelector('#savedTrxForm');
+
+      initNextBtn = stepperEl.querySelector('#initNextBtn');
+      submitBtn = stepperEl.querySelector('#submitBtn');
+      ackPrintBtn = stepperEl.querySelector("#ackPrintBtn");
+
+      initStepper();
+    }
+  };
+}();
